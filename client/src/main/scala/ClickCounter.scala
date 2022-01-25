@@ -1,15 +1,18 @@
 import org.scalajs.dom
 import slinky.core.FunctionalComponent
 import slinky.core.facade.Hooks.{useEffect, useState}
-import slinky.web.html._
+import slinky.core.facade.ReactElement
+import slinky.web.html.*
 
 object ClickCounter {
 
-  val random = new scala.util.Random()
-
   type Props = Unit
 
-  val component: FunctionalComponent[Props] = FunctionalComponent[Props] { _ =>
+  def apply(): ReactElement = component(())
+
+  private val random = new scala.util.Random()
+
+  private val component: FunctionalComponent[Props] = FunctionalComponent[Props] { _ =>
 
     val (count, setCount) = useState(0)
 
@@ -30,7 +33,7 @@ object ClickCounter {
     div(
       p(s"You clicked $count times"),
       button(
-        "Click me",
+        "Count",
         onClick := { () => setCount(count + 1) }
       ),
       button(

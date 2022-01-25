@@ -1,7 +1,8 @@
 import cats.effect.kernel.Sync
 import cats.effect.{IO, IOApp}
-import cats.syntax.all._
+import cats.syntax.all.*
 import org.scalajs.dom
+import org.scalajs.dom.Node
 import slinky.core.facade.ReactElement
 import slinky.web
 
@@ -12,7 +13,7 @@ object Main extends IOApp.Simple {
                     childName: String,
                     child: ReactElement,
                     log: String => F[Unit],
-                    additional: Option[F[Unit]] = None,
+                    onRender: Option[F[Unit]] = None,
                   )(
                     implicit F: Sync[F],
                   ): F[Unit] = {
@@ -25,7 +26,7 @@ object Main extends IOApp.Simple {
               parent.appendChild(container)
               web.ReactDOM.render(child, container)
             } >>
-            additional.traverse_(_.void) >>
+            onRender.traverse_(_.void) >>
             log(s"Rendered $parentName -> $childName")
         }
           .whenA(parent != null)
@@ -34,19 +35,28 @@ object Main extends IOApp.Simple {
 
   val logger: String => IO[Unit] = s => IO(println(s))
 
+  val logHelloWorld: IO[Unit] = IO(println(s"Hello, World"))
+
+  val displayHelloWorld: IO[Node] = IO({
+    val parNode = dom.document.createElement("p")
+    val textNode = dom.document.createTextNode("Hello, World")
+    parNode.appendChild(textNode)
+    dom.document.body.appendChild(parNode)
+  })
+
+  val createAppDiv: IO[Node] = IO({
+    val appDiv = dom.document.createElement("div")
+    appDiv.id = "app"
+    dom.document.body.appendChild(appDiv)
+  })
+
+  val displayClickCounter: IO[Unit] =
+    render("app", "click-counter", ClickCounter(), logger)
+
   override def run: IO[Unit] = {
-    IO(println(s"Hello, World")) >>
-      IO({
-        val parNode = dom.document.createElement("p")
-        val textNode = dom.document.createTextNode("Hello, World")
-        parNode.appendChild(textNode)
-        dom.document.body.appendChild(parNode)
-      }) >>
-      IO({
-        val appDiv = dom.document.createElement("div")
-        appDiv.id = "app"
-        dom.document.body.appendChild(appDiv)
-      }) >>
-      render("app", "click-counter", ClickCounter.component(()), logger)
+    logHelloWorld >>
+      displayHelloWorld >>
+      createAppDiv >>
+      displayClickCounter
   }
 }
