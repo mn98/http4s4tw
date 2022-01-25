@@ -17,7 +17,7 @@ object Main extends IOApp.Simple {
                     log: String => F[Unit],
                     onRender: Option[F[Unit]] = None,
                   )(
-                    implicit F: Sync[F],
+                    using F: Sync[F],
                   ): F[Unit] = {
     log(s"Attempting to render $childName within $parentName") >>
       F.delay(dom.document.getElementById(parentName)).flatMap {
