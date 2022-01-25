@@ -1,9 +1,9 @@
 # http4s4tw
 
-A client server experiment with http4s.
+A client-server experiment with [http4s](https://http4s.org).
 
-UI components are built with React (via Slinky) and state is managed both within
-the React components and within the main cats-effect `IOApp`.
+UI components are built with React (via [Slinky](https://slinky.dev)) and state is managed both within
+the React components and within the main [cats-effect](https://typelevel.org/cats-effect/) `IOApp`.
 
 ## Running the client
 
