@@ -6,13 +6,13 @@ import slinky.web.html.*
 
 object ClickCounter {
 
-  type Props = Unit
+  case class Props(logger: Logger)
 
-  def apply(): ReactElement = component(())
+  def apply(logger: Logger): ReactElement = component(Props(logger))
 
   private val random = new scala.util.Random()
 
-  private val component: FunctionalComponent[Props] = FunctionalComponent[Props] { _ =>
+  private val component: FunctionalComponent[Props] = FunctionalComponent[Props] { props =>
 
     val (count, setCount) = useState(0)
 
@@ -22,9 +22,12 @@ object ClickCounter {
           val r = random.nextInt(256)
           val g = random.nextInt(256)
           val b = random.nextInt(256)
-          dom.document.body.style.backgroundColor = s"rgb($r,$g,$b)"
+          val colour = s"rgb($r,$g,$b)"
+          dom.document.body.style.backgroundColor = colour
+          props.logger.log(s"Colour changed to $colour")
         } else {
           dom.document.body.style.backgroundColor = s"rgb(255,255,255)"
+          props.logger.log(s"Colour reset to white")
         }
       },
       Seq(count)
@@ -42,4 +45,5 @@ object ClickCounter {
       )
     )
   }
+
 }
