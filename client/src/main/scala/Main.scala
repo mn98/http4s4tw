@@ -28,14 +28,14 @@ object Main extends IOApp.Simple {
               parent.appendChild(container)
               web.ReactDOM.render(child, container)
             } >>
-            onRender.traverse_(_.void) >>
+            onRender.traverse_ { onRender =>
+              log(s"Performing post-rendering operations") >> onRender.void
+            } >>
             log(s"Rendered $parentName -> $childName")
         }
           .whenA(parent != null)
       }
   }
-
-  val logHelloWorld: IO[Unit] = IO(println(s"Hello, World"))
 
   val displayHelloWorld: IO[Node] = IO({
     val parNode = dom.document.createElement("p")
@@ -53,20 +53,20 @@ object Main extends IOApp.Simple {
   override def run: IO[Unit] = {
     Dispatcher[IO].use { dispatcher =>
 
-      Stream.eval(Queue.unbounded[IO, String]).flatMap { log =>
+      Stream.eval(Queue.unbounded[IO, String]).flatMap { logs =>
 
-        val logger: String => IO[Unit] = log.offer
+        val log: String => IO[Unit] = logs.offer
 
         val program: Stream[IO, Unit] = Stream.exec {
-          logHelloWorld >>
+          log("Hello, World") >>
             displayHelloWorld.void >>
             createAppDiv.void >>
-            Logger(dispatcher).flatMap { ceLogger =>
-              render("app", "click-counter", ClickCounter(ceLogger), logger)
+            Logger(dispatcher, log).flatMap { logger =>
+              render("app", "click-counter", ClickCounter(logger), log)
             }
         }
 
-        val logging = Stream.fromQueueUnterminated(log).map(s => println(s"log: $s"))
+        val logging = Stream.fromQueueUnterminated(logs).map(s => println(s"log: $s"))
 
         Stream(
           program,

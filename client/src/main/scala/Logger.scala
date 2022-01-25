@@ -6,9 +6,14 @@ trait Logger {
 }
 
 object Logger {
-  def apply[F[_]](dispatcher: Dispatcher[F])(using F: Sync[F]): F[Logger] = {
+  def apply[F[_]](
+                   dispatcher: Dispatcher[F],
+                   log: String => F[Unit]
+                 )(
+                   using F: Sync[F]
+                 ): F[Logger] = {
     F.delay {
-      (message: String) => dispatcher.unsafeRunAndForget(F.delay(println(message)))
+      (message: String) => dispatcher.unsafeRunAndForget(log(message))
     }
   }
 }
