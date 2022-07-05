@@ -1,11 +1,11 @@
 name := "http4s4tw"
 
-val http4sVersion = "0.23.7"
+val http4sVersion = "0.23.13"
 val slinkyVersion = "0.7.0"
 
 lazy val commonSettings = Seq(
   version := "0.1",
-  scalaVersion := "3.1.0",
+  scalaVersion := "3.1.3",
   scalacOptions ++= Seq("-deprecation", "-feature"),
 )
 
@@ -27,8 +27,9 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
     "react-dom" -> "16.13.1",
   ),
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.3.4",
-    "org.http4s" %%% "http4s-dom" % "0.2.0",
+    "org.typelevel" %% "cats-effect" % "3.3.13",
+    "org.http4s" %%% "http4s-dom" % "0.2.3",
+    "com.armanbilge" %%% "calico" % "0.1.1",
     "me.shadaj" %%% "slinky-core" % slinkyVersion,
     "me.shadaj" %%% "slinky-web" % slinkyVersion,
   )

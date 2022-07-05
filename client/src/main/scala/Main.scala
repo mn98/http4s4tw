@@ -50,6 +50,26 @@ object Main extends IOApp.Simple {
     dom.document.body.appendChild(appDiv)
   })
 
+  def newNode[F[_]](parentName: String, newNodeName: String)(using F: Sync[F]): F[Node] = F.delay({
+    val parent = dom.document.getElementById(parentName)
+    val container = dom.document.createElement(newNodeName)
+    parent.appendChild(container)
+    container
+  })
+
+  val renderCalicoCounter = {
+    import calico.dsl.io.*
+    import calico.syntax.*
+
+    newNode[IO]("app", "calico-counter").flatMap { node =>
+      val app = div(
+        h1("Let's count!"),
+        CalicoCounter.Counter("Sheep", initialStep = 3)
+      )
+      app.renderInto(node).allocated
+    }
+  }
+
   override def run: IO[Unit] = {
     Dispatcher[IO].use { dispatcher =>
 
@@ -63,7 +83,8 @@ object Main extends IOApp.Simple {
             createAppDiv.void >>
             Logger(dispatcher, log).flatMap { logger =>
               render("app", "click-counter", ClickCounter(logger), log)
-            }
+            } >>
+            renderCalicoCounter.void
         }
 
         val logging = Stream.fromQueueUnterminated(logs).map(s => println(s"log: $s"))
