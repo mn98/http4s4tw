@@ -3,6 +3,8 @@ import cats.effect.std.{Dispatcher, Queue}
 import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
 import fs2.Stream
+import org.http4s.client.Client
+import org.http4s.dom.FetchClientBuilder
 import org.scalajs.dom
 import org.scalajs.dom.Node
 import slinky.core.facade.ReactElement
@@ -64,7 +66,22 @@ object Main extends IOApp.Simple {
     newNode[IO]("app", "calico-counter").flatMap { node =>
       val app = div(
         h1("Let's count!"),
-        CalicoCounter.Counter("Sheep", initialStep = 3)
+        CalicoCounter.create("Sheep", initialStep = 3)
+      )
+      app.renderInto(node).allocated
+    }
+  }
+
+  val client: Client[IO] = FetchClientBuilder[IO].create
+
+  def renderCalicoHelloWorld(client: Client[IO]) = {
+    import calico.dsl.io.*
+    import calico.syntax.*
+
+    newNode[IO]("app", "calico-hello-world").flatMap { node =>
+      val app = div(
+        h1("Server demo!"),
+        Hello.world(client)
       )
       app.renderInto(node).allocated
     }
@@ -72,7 +89,6 @@ object Main extends IOApp.Simple {
 
   override def run: IO[Unit] = {
     Dispatcher[IO].use { dispatcher =>
-
       Stream.eval(Queue.unbounded[IO, String]).flatMap { logs =>
 
         val log: String => IO[Unit] = logs.offer
@@ -84,7 +100,8 @@ object Main extends IOApp.Simple {
             Logger(dispatcher, log).flatMap { logger =>
               render("app", "click-counter", ClickCounter(logger), log)
             } >>
-            renderCalicoCounter.void
+            renderCalicoCounter.void >>
+            renderCalicoHelloWorld(client).void
         }
 
         val logging = Stream.fromQueueUnterminated(logs).map(s => println(s"log: $s"))

@@ -1,4 +1,3 @@
-//import calico.*
 import calico.dsl.io.*
 import calico.syntax.*
 import cats.effect.*
@@ -6,10 +5,11 @@ import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
+import org.scalajs.dom.HTMLElement
 
 object CalicoCounter {
 
-  def Counter(label: String, initialStep: Int) =
+  def create(label: String, initialStep: Int): Resource[IO, HTMLElement] =
     SignallingRef[IO].of(initialStep).product(Channel.unbounded[IO, Int])
       .toResource.flatMap { (step, diff) =>
 
