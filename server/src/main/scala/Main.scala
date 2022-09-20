@@ -1,5 +1,6 @@
 import cats.effect.{IO, IOApp, Resource}
 import cats.syntax.all.*
+import fs2.Stream
 import org.http4s.*
 import org.http4s.Method.GET
 import org.http4s.Status.Ok
@@ -11,6 +12,8 @@ import org.http4s.ember.server.*
 import org.typelevel.ci.CIStringSyntax
 import com.comcast.ip4s.*
 
+import concurrent.duration.DurationInt
+
 val helloWorldService: HttpRoutes[IO] = HttpRoutes.of[IO] {
   case GET -> Root / "hello" / name =>
     Ok(
@@ -19,7 +22,18 @@ val helloWorldService: HttpRoutes[IO] = HttpRoutes.of[IO] {
     )
 }
 
-val httpApp: HttpApp[IO] = Router("/" -> helloWorldService).orNotFound
+val streamingNumberService: HttpRoutes[IO] = HttpRoutes.of[IO] {
+  case GET -> Root / "numbers" =>
+    Ok(
+      Stream.unfold[IO, Int, Int](0)(i => Some((i+1, i+1))).map(_.toString).metered(1.second),
+      Header.Raw(ci"Access-Control-Allow-Origin", "*")
+    )
+}
+
+val httpApp: HttpApp[IO] = Router(
+  "/" -> helloWorldService,
+  "/api" -> (helloWorldService <+> streamingNumberService)
+).orNotFound
 
 val server: Resource[IO, Server] = EmberServerBuilder
   .default[IO]

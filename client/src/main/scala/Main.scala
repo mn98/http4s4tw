@@ -87,6 +87,19 @@ object Main extends IOApp.Simple {
     }
   }
 
+  def renderCalicoNumbers(client: Client[IO]) = {
+    import calico.dsl.io.*
+    import calico.syntax.*
+
+    newNode[IO]("app", "calico-number-stream").flatMap { node =>
+      val app = div(
+        h1("Streaming demo!"),
+        Numbers.streamer(client)
+      )
+      app.renderInto(node).allocated
+    }
+  }
+
   override def run: IO[Unit] = {
     Dispatcher[IO].use { dispatcher =>
       Stream.eval(Queue.unbounded[IO, String]).flatMap { logs =>
@@ -101,7 +114,8 @@ object Main extends IOApp.Simple {
               render("app", "click-counter", ClickCounter(logger), log)
             } >>
             renderCalicoCounter.void >>
-            renderCalicoHelloWorld(client).void
+            renderCalicoHelloWorld(client).void >>
+            renderCalicoNumbers(client).void
         }
 
         val logging = Stream.fromQueueUnterminated(logs).map(s => println(s"log: $s"))
