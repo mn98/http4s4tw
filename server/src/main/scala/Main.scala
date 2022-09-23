@@ -1,4 +1,5 @@
 import cats.effect.{IO, IOApp, Resource}
+import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.Stream
 import org.http4s.*
@@ -11,6 +12,7 @@ import org.http4s.server.{Router, Server}
 import org.http4s.ember.server.*
 import org.typelevel.ci.CIStringSyntax
 import com.comcast.ip4s.*
+import fs2.concurrent.SignallingRef
 
 import concurrent.duration.DurationInt
 
@@ -22,26 +24,37 @@ val helloWorldService: HttpRoutes[IO] = HttpRoutes.of[IO] {
     )
 }
 
-val streamingNumberService: HttpRoutes[IO] = HttpRoutes.of[IO] {
-  case GET -> Root / "numbers" =>
-    Ok(
-      Stream.unfold[IO, Int, Int](0)(i => Some((i+1, i+1))).map(_.toString).metered(1.second),
-      Header.Raw(ci"Access-Control-Allow-Origin", "*")
-    )
-}
+private val numbers = Stream.unfold[IO, Int, Int](0)(i => Some((i + 1, i + 1))).map(_.toString).metered(1.second)
 
-val httpApp: HttpApp[IO] = Router(
+def streamingNumberService(stopStreaming: SignallingRef[IO, Boolean]): HttpRoutes[IO] =
+  HttpRoutes.of[IO] {
+    case GET -> Root / "numbers" =>
+      Ok(
+        Stream.exec(stopStreaming.set(false)) ++ numbers.interruptWhen(stopStreaming),
+        Header.Raw(ci"Access-Control-Allow-Origin", "*")
+      )
+    case GET -> Root / "numbers" / "stop" =>
+      Ok(
+        Stream.exec(stopStreaming.set(true)) ++ Stream("Streaming stopped"),
+        Header.Raw(ci"Access-Control-Allow-Origin", "*")
+      )
+  }
+
+def httpApp(routes: HttpRoutes[IO]*): HttpApp[IO] = Router(
   "/" -> helloWorldService,
-  "/api" -> (helloWorldService <+> streamingNumberService)
+  "/api" -> routes.foldLeft(helloWorldService)(_ <+> _)
 ).orNotFound
 
-val server: Resource[IO, Server] = EmberServerBuilder
+def server(app: HttpApp[IO]): Resource[IO, Server] = EmberServerBuilder
   .default[IO]
   .withHost(ipv4"0.0.0.0")
   .withPort(port"8080")
-  .withHttpApp(httpApp)
+  .withHttpApp(app)
   .build
 
 object Main extends IOApp.Simple {
-  override def run: IO[Unit] = server.use(_ => IO.never)
+  override def run: IO[Unit] =
+    SignallingRef[IO].of(false).flatMap { stopStreaming =>
+      server(httpApp(streamingNumberService(stopStreaming))).use(_ => IO.never)
+    }
 }
