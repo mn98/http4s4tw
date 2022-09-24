@@ -111,7 +111,8 @@ object Main extends IOApp.Simple {
             displayHelloWorld.void >>
             createAppDiv.void >>
             Logger(dispatcher, log).flatMap { logger =>
-              render("app", "click-counter", ClickCounter(logger), log)
+              render("app", "click-counter", ClickCounter(logger), log) >>
+                render("app", "number-stream", SlinkyNumbers(client, dispatcher, logger), log)
             } >>
             renderCalicoCounter.void >>
             renderCalicoHelloWorld(client).void >>

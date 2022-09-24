@@ -47,7 +47,7 @@ object Numbers {
                           case Status.Ok =>
                             number.set("???")
                           case notOk =>
-                            IO(println(s"Failed with status: $notOk")) >> number.set("???")
+                            IO.println(s"Failed with status: $notOk") >> number.set("???")
                         }
                       }
                     } else {
@@ -57,13 +57,13 @@ object Numbers {
                             response
                               .body
                               .through(text.utf8.decode)
-                              .foreach(number.set)
+                              .foreach(i => IO.println(s"Client received $i") >> number.set(i))
                               .compile
                               .drain
                               .background
                               .use(_.void)
                           case notOk =>
-                            IO(println(s"Failed with status: $notOk")) >> number.set("???")
+                            IO.println(s"Failed with status: $notOk") >> number.set("???")
                         }
                       }
                     }
