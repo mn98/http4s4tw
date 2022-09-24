@@ -1,6 +1,6 @@
 name := "http4s4tw"
 
-val http4sVersion = "0.23.15"
+val http4sVersion = "0.23.16"
 val slinkyVersion = "0.7.0"
 
 lazy val commonSettings = Seq(
