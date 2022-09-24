@@ -11,6 +11,10 @@ import slinky.web.html.*
 import org.http4s.headers.Accept
 import org.http4s.implicits.uri
 import org.http4s.{Header, Method, Request, Status}
+import org.scalajs.dom.{Fetch, Headers, HttpMethod, RequestInit}
+import scala.scalajs.js.Thenable.Implicits.*
+
+import org.scalajs.macrotaskexecutor.MacrotaskExecutor.Implicits.*
 
 object SlinkyNumbers {
 
@@ -81,7 +85,23 @@ object SlinkyNumbers {
           }
         }
       ),
-      b(number)
+      b(number),
+      button(
+        "Start with fetch",
+        onClick := { () => {
+          val localHeaders = new Headers()
+          localHeaders.set("Content-Type", "text/plain")
+          Fetch.fetch(
+            "http://localhost:8080/api/numbers",
+            new RequestInit {
+              method = HttpMethod.GET
+              headers = localHeaders
+            })
+            .flatMap(res => res.text())
+            .map(data => setNumber(data))
+        }: Unit
+        }
+      )
     )
 
   }
