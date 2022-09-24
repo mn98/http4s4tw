@@ -97,8 +97,10 @@ object SlinkyNumbers {
               method = HttpMethod.GET
               headers = localHeaders
             })
-            .flatMap(res => res.text())
-            .map(data => setNumber(data))
+            .flatMap { res =>
+              val reader = res.body.getReader()
+              reader.read().map(c => setNumber(c.value.toString))
+            }
         }: Unit
         }
       )
