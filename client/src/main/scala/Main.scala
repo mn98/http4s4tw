@@ -59,49 +59,55 @@ object Main extends IOApp.Simple {
     container
   })
 
-  val renderCalicoCounter = {
-    import calico.dsl.io.*
+  private val renderCalicoCounter = {
+    import calico.*
+    import calico.html.io.{*, given}
     import calico.syntax.*
+    import calico.unsafe.given
 
     newNode[IO]("app", "calico-counter").flatMap { node =>
       val app = div(
         h1("Let's count!"),
         CalicoCounter.create("Sheep", initialStep = 3)
       )
-      app.renderInto(node).allocated
+      app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
     }
   }
 
   val client: Client[IO] = FetchClientBuilder[IO].create
 
-  def renderCalicoHelloWorld(client: Client[IO]) = {
-    import calico.dsl.io.*
+  private def renderCalicoHelloWorld(client: Client[IO]) = {
+    import calico.*
+    import calico.html.io.{*, given}
     import calico.syntax.*
+    import calico.unsafe.given
 
     newNode[IO]("app", "calico-hello-world").flatMap { node =>
       val app = div(
         h1("Server demo!"),
         Hello.world(client)
       )
-      app.renderInto(node).allocated
+      app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
     }
   }
 
   def renderCalicoNumbers(client: Client[IO]) = {
-    import calico.dsl.io.*
+    import calico.*
+    import calico.html.io.{*, given}
     import calico.syntax.*
+    import calico.unsafe.given
 
     newNode[IO]("app", "calico-number-stream").flatMap { node =>
       val app = div(
         h1("Streaming demo!"),
         Numbers.streamer(client)
       )
-      app.renderInto(node).allocated
+      app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
     }
   }
 
   override def run: IO[Unit] = {
-    Dispatcher[IO].use { dispatcher =>
+    Dispatcher.sequential[IO].use { dispatcher =>
       Stream.eval(Queue.unbounded[IO, String]).flatMap { logs =>
 
         val log: String => IO[Unit] = logs.offer

@@ -1,15 +1,17 @@
-import calico.dsl.io.*
+import calico.*
+import calico.html.io.{*, given}
 import calico.syntax.*
+import calico.unsafe.given
 import cats.effect.*
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.*
 import fs2.concurrent.*
-import org.scalajs.dom.HTMLElement
+import fs2.dom.HtmlDivElement
 
 object CalicoCounter {
 
-  def create(label: String, initialStep: Int): Resource[IO, HTMLElement] =
+  def create(label: String, initialStep: Int): Resource[IO, HtmlDivElement[IO]] =
     SignallingRef[IO].of(initialStep).product(Channel.unbounded[IO, Int])
       .toResource.flatMap { (step, diff) =>
 
@@ -18,17 +20,19 @@ object CalicoCounter {
       div(
         p(
           "Step: ",
-          select(
-            allowedSteps.map(step => option(value := step.toString, step.toString)),
-            value <-- step.map(_.toString),
-            onChange --> {
-              _.mapToTargetValue.map(_.toIntOption).unNone.foreach(step.set)
-            }
-          )
+          select.withSelf { self =>
+            (
+              allowedSteps.map(step => option(value := step.toString, step.toString)),
+              value <-- step.map(_.toString),
+              onChange --> {
+                _.evalMap(_ => self.value.get).map(_.toIntOption).unNone.foreach(step.set)
+              }
+            )
+          }
         ),
         p(
           label + ": ",
-          b(diff.stream.scanMonoid.map(_.toString)),
+          b(diff.stream.scanMonoid.map(_.toString).holdOptionResource),
           " ",
           button(
             "-",

@@ -1,16 +1,17 @@
-import calico.dsl.io.*
+import calico.*
+import calico.html.io.{*, given}
+import calico.unsafe.given
 import calico.syntax.*
 import cats.effect.*
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
+import fs2.*
 import fs2.concurrent.*
-import fs2.Stream
-import fs2.text
+import fs2.dom.HtmlDivElement
 import org.http4s.client.Client
 import org.http4s.headers.Accept
 import org.http4s.implicits.uri
 import org.http4s.{Header, Method, Request, Status}
-import org.scalajs.dom.HTMLElement
 import org.typelevel.ci.CIStringSyntax
 
 object Numbers {
@@ -29,7 +30,7 @@ object Numbers {
       .withUri(restUrl / "api" / "numbers" / "stop")
       .putHeaders(Accept.parse("text/plain"))
 
-  def streamer(client: Client[IO]): Resource[IO, HTMLElement] =
+  def streamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
     SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
       (number, streaming) =>
         div(
@@ -37,7 +38,7 @@ object Numbers {
             button(
               (Stream.eval(streaming.get) ++ streaming.discrete).map { streaming =>
                 s"Click to ${if (streaming) "stop streaming" else "stream numbers"}"
-              },
+              }.holdOptionResource,
               onClick --> {
                 _.foreach { _ =>
                   streaming.modify { streaming =>
@@ -71,7 +72,7 @@ object Numbers {
                 }
               }
             ),
-            b(number.discrete)
+            b(number.map(x => x))
           )
         )
     }
