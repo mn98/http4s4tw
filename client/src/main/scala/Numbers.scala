@@ -61,8 +61,6 @@ object Numbers {
                               .foreach(i => IO.println(s"Client received $i") >> number.set(i))
                               .compile
                               .drain
-                              .background
-                              .use(_.void)
                           case notOk =>
                             IO.println(s"Failed with status: $notOk") >> number.set("???")
                         }
