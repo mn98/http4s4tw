@@ -30,7 +30,7 @@ object Numbers {
       .withUri(restUrl / "api" / "numbers" / "stop")
       .putHeaders(Accept.parse("text/plain"))
 
-  def streamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
+  def oneButtonStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
     SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
       (number, streaming) =>
         div(
@@ -70,7 +70,54 @@ object Numbers {
                 }
               }
             ),
-            b(number)
+            b(number),
+          )
+        )
+    }
+
+  def twoButtonStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
+    SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
+      (number, streaming) =>
+        div(
+          p(
+            button(
+              "Start",
+              hidden <-- streaming,
+              onClick --> {
+                _.foreach { _ =>
+                  streaming.update(!_) >> client.run(start).use { response =>
+                    response.status match {
+                      case Status.Ok =>
+                        response
+                          .body
+                          .through(text.utf8.decode)
+                          .foreach(i => IO.println(s"Client received $i") >> number.set(i))
+                          .compile
+                          .drain
+                      case notOk =>
+                        IO.println(s"Failed with status: $notOk") >> number.set("???")
+                    }
+                  }
+                }
+              }
+            ),
+            button(
+              "Stop",
+              hidden <-- streaming.map(!_),
+              onClick --> {
+                _.foreach { _ =>
+                  streaming.update(!_) >> client.run(stop).use { response =>
+                    response.status match {
+                      case Status.Ok =>
+                        number.set("???")
+                      case notOk =>
+                        IO.println(s"Failed with status: $notOk") >> number.set("???")
+                    }
+                  }
+                }
+              },
+            ),
+            b(number),
           )
         )
     }

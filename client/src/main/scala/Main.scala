@@ -12,15 +12,15 @@ import slinky.web
 
 object Main extends IOApp.Simple {
 
-  def render[F[_]](
-                    parentName: String,
-                    childName: String,
-                    child: ReactElement,
-                    log: String => F[Unit],
-                    onRender: Option[F[Unit]] = None,
-                  )(
-                    using F: Sync[F],
-                  ): F[Unit] = {
+  private def render[F[_]](
+                            parentName: String,
+                            childName: String,
+                            child: ReactElement,
+                            log: String => F[Unit],
+                            onRender: Option[F[Unit]] = None,
+                          )(
+                            using F: Sync[F],
+                          ): F[Unit] = {
     log(s"Attempting to render $childName within $parentName") >>
       F.delay(dom.document.getElementById(parentName)).flatMap {
         parent => {
@@ -39,20 +39,20 @@ object Main extends IOApp.Simple {
       }
   }
 
-  val displayHelloWorld: IO[Node] = IO({
+  private val displayHelloWorld: IO[Node] = IO({
     val parNode = dom.document.createElement("p")
     val textNode = dom.document.createTextNode("Hello, World")
     parNode.appendChild(textNode)
     dom.document.body.appendChild(parNode)
   })
 
-  val createAppDiv: IO[Node] = IO({
+  private val createAppDiv: IO[Node] = IO({
     val appDiv = dom.document.createElement("div")
     appDiv.id = "app"
     dom.document.body.appendChild(appDiv)
   })
 
-  def newNode[F[_]](parentName: String, newNodeName: String)(using F: Sync[F]): F[Node] = F.delay({
+  private def newNode[F[_]](parentName: String, newNodeName: String)(using F: Sync[F]): F[Node] = F.delay({
     val parent = dom.document.getElementById(parentName)
     val container = dom.document.createElement(newNodeName)
     parent.appendChild(container)
@@ -91,7 +91,7 @@ object Main extends IOApp.Simple {
     }
   }
 
-  def renderCalicoNumbers(client: Client[IO]) = {
+  private def renderCalicoNumbers(client: Client[IO]) = {
     import calico.*
     import calico.html.io.{*, given}
     import calico.syntax.*
@@ -100,7 +100,8 @@ object Main extends IOApp.Simple {
     newNode[IO]("app", "calico-number-stream").flatMap { node =>
       val app = div(
         h1("Streaming demo!"),
-        Numbers.streamer(client)
+        Numbers.oneButtonStreamer(client),
+        Numbers.twoButtonStreamer(client),
       )
       app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
     }
