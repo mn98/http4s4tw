@@ -125,7 +125,7 @@ private def renderCalicoNumbers(client: Client[IO]) = {
           renderCalicoNumbers(client).void
       }
 
-      val logging = Stream.fromQueueUnterminated(logs).map(s => println(s"log: $s"))
+      val logging = Stream.fromQueueUnterminated(logs).debug(s => s"log: $s")
 
       Stream(
         program,
