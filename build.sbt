@@ -28,12 +28,12 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
     "react-dom" -> "16.13.1",
   ),
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.4.5",
+    "org.typelevel" %% "cats-effect" % "3.4.6",
     "org.http4s" %%% "http4s-dom" % "0.2.3",
     "org.http4s" %%% "http4s-client" % http4sVersion,
     "org.http4s" %%% "http4s-circe" % http4sVersion,
     "io.circe" %%% "circe-generic" % "0.14.2",
-    "com.armanbilge" %%% "calico" % "0.2.0-M2",
+    "com.armanbilge" %%% "calico" % "0.2.0-M4",
     "me.shadaj" %%% "slinky-core" % slinkyVersion,
     "me.shadaj" %%% "slinky-web" % slinkyVersion,
   )

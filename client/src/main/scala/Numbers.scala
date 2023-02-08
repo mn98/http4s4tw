@@ -70,7 +70,7 @@ object Numbers {
                 }
               }
             ),
-            b(number.map(x => x))
+            b(number)
           )
         )
     }
