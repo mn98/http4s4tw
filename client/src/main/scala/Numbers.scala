@@ -35,9 +35,10 @@ object Numbers {
       (number, streaming) =>
         div(
           p(
+            "One button streamer: ",
             button(
               (Stream.eval(streaming.get) ++ streaming.discrete).map { streaming =>
-                s"Click to ${if (streaming) "stop streaming" else "stream numbers"}"
+                if streaming then "Stop" else "Start"
               }.holdOptionResource,
               onClick --> {
                 _.foreach { _ =>
@@ -80,6 +81,7 @@ object Numbers {
       (number, streaming) =>
         div(
           p(
+            "Two button streamer: ",
             button(
               "Start",
               hidden <-- streaming,
