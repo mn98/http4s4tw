@@ -2,7 +2,7 @@
 
 A client-server experiment with [http4s](https://http4s.org).
 
-UI components are built with React (via [Slinky](https://slinky.dev)) or [Calico](https://www.armanbilge.com/calico/).
+UI components are built with [Calico](https://www.armanbilge.com/calico/).
 
 ## Compile & Run
 
