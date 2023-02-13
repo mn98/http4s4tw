@@ -91,7 +91,7 @@ private def program: IO[Unit] =
 
       Stream(
         program,
-        logging // this never terminates, allowing the dispatcher to live forever
+        logging // this never terminates
       )
         .parJoinUnbounded
     }
