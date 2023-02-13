@@ -9,7 +9,7 @@ import fs2.*
 import fs2.concurrent.*
 import fs2.dom.HtmlDivElement
 
-object CalicoCounter {
+object Counter {
 
   def create(label: String, initialStep: Int): Resource[IO, HtmlDivElement[IO]] =
     SignallingRef[IO].of(initialStep).product(Channel.unbounded[IO, Int])

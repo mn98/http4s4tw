@@ -1,6 +1,9 @@
+import calico.*
+import calico.html.io.{*, given}
+import calico.syntax.*
+import calico.unsafe.given
 import cats.effect.kernel.Sync
-import cats.effect.std.{Dispatcher, Queue}
-import cats.effect.unsafe.implicits.global
+import cats.effect.std.Queue
 import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
 import fs2.Stream
@@ -8,37 +11,8 @@ import org.http4s.client.Client
 import org.http4s.dom.FetchClientBuilder
 import org.scalajs.dom
 import org.scalajs.dom.Node
-import slinky.core.facade.ReactElement
-import slinky.web
 
-private def render[F[_]](
-                          parentName: String,
-                          childName: String,
-                          child: ReactElement,
-                          log: String => F[Unit],
-                          onRender: Option[F[Unit]] = None,
-                        )(
-                          using F: Sync[F],
-                        ): F[Unit] = {
-  log(s"Attempting to render $childName within $parentName") >>
-    F.delay(dom.document.getElementById(parentName)).flatMap {
-      parent => {
-        log(s"Found parent: $parentName") >>
-          F.delay {
-            val container = dom.document.createElement(childName)
-            parent.appendChild(container)
-            web.ReactDOM.render(child, container)
-          } >>
-          onRender.traverse_ { onRender =>
-            log(s"Performing post-rendering operations") >> onRender.void
-          } >>
-          log(s"Rendered $parentName -> $childName")
-      }
-        .whenA(parent != null)
-    }
-}
-
-private val displayHelloWorld: IO[Node] = IO({
+private val helloWorld: IO[Node] = IO({
   val parNode = dom.document.createElement("p")
   val textNode = dom.document.createTextNode("Hello, World")
   parNode.appendChild(textNode)
@@ -58,29 +32,27 @@ private def newNode[F[_]](parentName: String, newNodeName: String)(using F: Sync
   container
 })
 
-private val renderCalicoCounter = {
-  import calico.*
-  import calico.html.io.{*, given}
-  import calico.syntax.*
-  import calico.unsafe.given
-
-  newNode[IO]("app", "calico-counter").flatMap { node =>
+private val calicoColours = {
+  newNode[IO]("app", "calico-colours").flatMap { node =>
     val app = div(
-      h1("Let's count!"),
-      CalicoCounter.create("Sheep", initialStep = 3)
+      h1("All the colours!"),
+      Colours.create
     )
     app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
   }
 }
 
-val client: Client[IO] = FetchClientBuilder[IO].create
+private val calicoCounter = {
+  newNode[IO]("app", "calico-counter").flatMap { node =>
+    val app = div(
+      h1("Let's count!"),
+      Counter.create("Sheep", initialStep = 3)
+    )
+    app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
+  }
+}
 
-private def renderCalicoHelloWorld(client: Client[IO]) = {
-  import calico.*
-  import calico.html.io.{*, given}
-  import calico.syntax.*
-  import calico.unsafe.given
-
+private def calicoHelloWorld(client: Client[IO]) = {
   newNode[IO]("app", "calico-hello-world").flatMap { node =>
     val app = div(
       h1("Server demo!"),
@@ -90,12 +62,7 @@ private def renderCalicoHelloWorld(client: Client[IO]) = {
   }
 }
 
-private def renderCalicoNumbers(client: Client[IO]) = {
-  import calico.*
-  import calico.html.io.{*, given}
-  import calico.syntax.*
-  import calico.unsafe.given
-
+private def calicoNumbers(client: Client[IO]) = {
   newNode[IO]("app", "calico-number-stream").flatMap { node =>
     val app = div(
       h1("Streaming demo!"),
@@ -106,23 +73,18 @@ private def renderCalicoNumbers(client: Client[IO]) = {
   }
 }
 
-@main def run(): Unit = {
-  Dispatcher.sequential[IO].use { dispatcher =>
+private def program: IO[Unit] =
+  FetchClientBuilder[IO].resource.use { client =>
     Stream.eval(Queue.unbounded[IO, String]).flatMap { logs =>
 
-      val log: String => IO[Unit] = logs.offer
-
       val program: Stream[IO, Unit] = Stream.exec {
-        log("Hello, World") >>
-          displayHelloWorld.void >>
+        logs.offer("Hello, World") >>
+          helloWorld.void >>
           createAppDiv.void >>
-          Logger(dispatcher, log).flatMap { logger =>
-            render("app", "click-counter", ClickCounter(logger), log) >>
-              render("app", "number-stream", SlinkyNumbers(client, dispatcher, logger), log)
-          } >>
-          renderCalicoCounter.void >>
-          renderCalicoHelloWorld(client).void >>
-          renderCalicoNumbers(client).void
+          calicoColours.void >>
+          calicoCounter.void >>
+          calicoHelloWorld(client).void >>
+          calicoNumbers(client).void
       }
 
       val logging = Stream.fromQueueUnterminated(logs).debug(s => s"log: $s")
@@ -136,4 +98,5 @@ private def renderCalicoNumbers(client: Client[IO]) = {
       .compile
       .drain
   }
-}.unsafeRunAndForget()
+
+@main def run(): Unit = program.unsafeRunAndForget()
