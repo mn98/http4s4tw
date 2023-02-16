@@ -3,6 +3,7 @@ import calico.html.io.{*, given}
 import calico.unsafe.given
 import calico.syntax.*
 import cats.effect.*
+import cats.effect.std.Supervisor
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.*
@@ -30,19 +31,19 @@ object Numbers {
       .withUri(restUrl / "api" / "numbers" / "stop")
       .putHeaders(Accept.parse("text/plain"))
 
-  def oneButtonStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
+  def oneButtonParallelStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
     SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
       (number, streaming) =>
         div(
           p(
-            "One button streamer: ",
+            "One button parallel streamer: ",
             button(
               streaming.discrete.map(if _ then "Stop" else "Start").holdOptionResource,
               onClick --> {
-                _.foreach { _ =>
+                _.parEvalMap(2) { _ =>
                   streaming.modify { streaming =>
                     if (streaming) {
-                      !streaming -> client.run(stop).use { response =>
+                      false -> client.run(stop).use { response =>
                         response.status match {
                           case Status.Ok =>
                             number.set("???")
@@ -51,7 +52,7 @@ object Numbers {
                         }
                       }
                     } else {
-                      !streaming -> client.run(start).use { response =>
+                      true -> client.run(start).use { response =>
                         response.status match {
                           case Status.Ok =>
                             response
@@ -67,7 +68,7 @@ object Numbers {
                       }
                     }
                   }.flatten
-                }
+                }.drain
               }
             ),
             b(number),
@@ -75,49 +76,53 @@ object Numbers {
         )
     }
 
-  def oneButtonStreamerV2(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
-    SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
-      (number, streaming) =>
-        div(
-          p(
-            "One button streamer: ",
-            button(
-              streaming.discrete.map(if _ then "Stop" else "Start").holdOptionResource,
-              onClick --> {
-                _.parEvalMap(2) { _ =>
-                  streaming.getAndUpdate(!_).flatMap { streaming =>
-                    if (streaming) {
-                      client.run(stop).use { response =>
-                        response.status match {
-                          case Status.Ok =>
-                            number.set("???")
-                          case notOk =>
-                            IO.println(s"Failed with status: $notOk") >> number.set("???")
+  def oneButtonSupervisedStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
+    Supervisor[IO].flatMap { supervisor =>
+      SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
+        (number, streaming) =>
+          div(
+            p(
+              "One button supervised streamer: ",
+              button(
+                streaming.discrete.map(if _ then "Stop" else "Start").holdOptionResource,
+                onClick --> {
+                  _.foreach { _ =>
+                    supervisor.supervise {
+                      streaming.modify { streaming =>
+                        if (streaming) {
+                          false -> client.run(stop).use { response =>
+                            response.status match {
+                              case Status.Ok =>
+                                number.set("???")
+                              case notOk =>
+                                IO.println(s"Failed with status: $notOk") >> number.set("???")
+                            }
+                          }
+                        } else {
+                          true -> client.run(start).use { response =>
+                            response.status match {
+                              case Status.Ok =>
+                                response
+                                  .body
+                                  .through(text.utf8.decode)
+                                  .debug(i => s"Client received $i")
+                                  .foreach(number.set)
+                                  .compile
+                                  .drain
+                              case notOk =>
+                                IO.println(s"Failed with status: $notOk") >> number.set("???")
+                            }
+                          }
                         }
-                      }
-                    } else {
-                      client.run(start).use { response =>
-                        response.status match {
-                          case Status.Ok =>
-                            response
-                              .body
-                              .through(text.utf8.decode)
-                              .debug(i => s"Client received $i")
-                              .foreach(number.set)
-                              .compile
-                              .drain
-                          case notOk =>
-                            IO.println(s"Failed with status: $notOk") >> number.set("???")
-                        }
-                      }
-                    }
+                      }.flatten
+                    }.void
                   }
-                }.drain
-              }
-            ),
-            b(number),
+                }
+              ),
+              b(number),
+            )
           )
-        )
+      }
     }
 
   def twoButtonStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =

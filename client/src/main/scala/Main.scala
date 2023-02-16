@@ -66,8 +66,8 @@ private def calicoNumbers(client: Client[IO]) = {
   newNode[IO]("app", "calico-number-stream").flatMap { node =>
     val app = div(
       h1("Streaming demo!"),
-      Numbers.oneButtonStreamer(client),
-      Numbers.oneButtonStreamerV2(client),
+      Numbers.oneButtonParallelStreamer(client),
+      Numbers.oneButtonSupervisedStreamer(client),
       Numbers.twoButtonStreamer(client),
     )
     app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
