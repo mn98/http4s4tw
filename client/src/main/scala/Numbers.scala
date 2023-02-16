@@ -37,9 +37,7 @@ object Numbers {
           p(
             "One button streamer: ",
             button(
-              (Stream.eval(streaming.get) ++ streaming.discrete).map { streaming =>
-                if streaming then "Stop" else "Start"
-              }.holdOptionResource,
+              streaming.discrete.map(if _ then "Stop" else "Start").holdOptionResource,
               onClick --> {
                 _.foreach { _ =>
                   streaming.modify { streaming =>
@@ -59,7 +57,8 @@ object Numbers {
                             response
                               .body
                               .through(text.utf8.decode)
-                              .foreach(i => IO.println(s"Client received $i") >> number.set(i))
+                              .debug(i => s"Client received $i")
+                              .foreach(number.set)
                               .compile
                               .drain
                           case notOk =>
@@ -69,6 +68,51 @@ object Numbers {
                     }
                   }.flatten
                 }
+              }
+            ),
+            b(number),
+          )
+        )
+    }
+
+  def oneButtonStreamerV2(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
+    SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
+      (number, streaming) =>
+        div(
+          p(
+            "One button streamer: ",
+            button(
+              streaming.discrete.map(if _ then "Stop" else "Start").holdOptionResource,
+              onClick --> {
+                _.parEvalMap(2) { _ =>
+                  streaming.getAndUpdate(!_).flatMap { streaming =>
+                    if (streaming) {
+                      client.run(stop).use { response =>
+                        response.status match {
+                          case Status.Ok =>
+                            number.set("???")
+                          case notOk =>
+                            IO.println(s"Failed with status: $notOk") >> number.set("???")
+                        }
+                      }
+                    } else {
+                      client.run(start).use { response =>
+                        response.status match {
+                          case Status.Ok =>
+                            response
+                              .body
+                              .through(text.utf8.decode)
+                              .debug(i => s"Client received $i")
+                              .foreach(number.set)
+                              .compile
+                              .drain
+                          case notOk =>
+                            IO.println(s"Failed with status: $notOk") >> number.set("???")
+                        }
+                      }
+                    }
+                  }
+                }.drain
               }
             ),
             b(number),
@@ -93,7 +137,8 @@ object Numbers {
                         response
                           .body
                           .through(text.utf8.decode)
-                          .foreach(i => IO.println(s"Client received $i") >> number.set(i))
+                          .debug(i => s"Client received $i")
+                          .foreach(number.set)
                           .compile
                           .drain
                       case notOk =>

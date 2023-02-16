@@ -30,7 +30,7 @@ def streamingNumberService(stopStreaming: SignallingRef[IO, Boolean]): HttpRoute
   HttpRoutes.of[IO] {
     case GET -> Root / "numbers" =>
       Ok(
-        Stream.exec(stopStreaming.set(false)) ++ numbers.interruptWhen(stopStreaming),
+        Stream.exec(stopStreaming.set(false)) ++ numbers.debug(i => s"Server streamed $i").interruptWhen(stopStreaming),
         Header.Raw(ci"Access-Control-Allow-Origin", "*")
       )
     case GET -> Root / "numbers" / "stop" =>
