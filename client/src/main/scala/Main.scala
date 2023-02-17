@@ -68,6 +68,7 @@ private def calicoNumbers(client: Client[IO]) = {
       h1("Streaming demo!"),
       Numbers.oneButtonParallelStreamer(client),
       Numbers.oneButtonSupervisedStreamer(client),
+      Numbers.oneButtonHotswappedStreamer(client),
       Numbers.twoButtonStreamer(client),
     )
     app.renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated

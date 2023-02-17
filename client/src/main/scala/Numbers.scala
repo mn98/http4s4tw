@@ -3,7 +3,7 @@ import calico.html.io.{*, given}
 import calico.unsafe.given
 import calico.syntax.*
 import cats.effect.*
-import cats.effect.std.Supervisor
+import cats.effect.std.{Hotswap, Supervisor}
 import cats.effect.syntax.all.*
 import cats.syntax.all.*
 import fs2.*
@@ -116,6 +116,57 @@ object Numbers {
                         }
                       }.flatten
                     }.void
+                  }
+                }
+              ),
+              b(number),
+            )
+          )
+      }
+    }
+
+  def oneButtonHotswappedStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
+    Hotswap.create[IO, Unit].flatMap { hotswap =>
+      SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
+        (number, streaming) =>
+          div(
+            p(
+              "One button hotswapped streamer: ",
+              button(
+                streaming.discrete.map(if _ then "Stop" else "Start").holdOptionResource,
+                onClick --> {
+                  _.foreach { _ =>
+                    streaming.modify { streaming =>
+                      if (streaming) {
+                        false -> hotswap.swap {
+                          client.run(stop).use { response =>
+                            response.status match {
+                              case Status.Ok =>
+                                number.set("???")
+                              case notOk =>
+                                IO.println(s"Failed with status: $notOk") >> number.set("???")
+                            }
+                          }.background.void
+                        }
+                      } else {
+                        true -> hotswap.swap {
+                          client.run(start).use { response =>
+                            response.status match {
+                              case Status.Ok =>
+                                response
+                                  .body
+                                  .through(text.utf8.decode)
+                                  .debug(i => s"Client received $i")
+                                  .foreach(number.set)
+                                  .compile
+                                  .drain
+                              case notOk =>
+                                IO.println(s"Failed with status: $notOk") >> number.set("???")
+                            }
+                          }.background.void
+                        }
+                      }
+                    }.flatten
                   }
                 }
               ),
