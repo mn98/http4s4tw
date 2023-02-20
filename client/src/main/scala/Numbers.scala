@@ -41,10 +41,11 @@ object Numbers {
               .through(text.utf8.decode)
               .debug(i => s"Client received $i")
               .foreach(number.set)
+              .onFinalize(number.set("???"))
               .compile
               .drain
           case notOk =>
-            IO.println(s"Failed with status: $notOk") >> number.set("???")
+            IO.println(s"Failed with status: $notOk") >> number.set("Start request failed")
         }
       }
 
@@ -55,7 +56,7 @@ object Numbers {
           case Status.Ok =>
             number.set("???")
           case notOk =>
-            IO.println(s"Failed with status: $notOk") >> number.set("???")
+            IO.println(s"Failed with status: $notOk") >> number.set("Stop request failed")
         }
       }
 
@@ -126,13 +127,9 @@ object Numbers {
                   _.foreach { _ =>
                     streaming.modify { streaming =>
                       if (streaming) {
-                        false -> hotswap.swap {
-                          runStop(client, number).background.void
-                        }
+                        false -> hotswap.clear
                       } else {
-                        true -> hotswap.swap {
-                          runStart(client, number).background.void
-                        }
+                        true -> hotswap.swap(runStart(client, number).background.void)
                       }
                     }.flatten
                   }
@@ -155,7 +152,7 @@ object Numbers {
               hidden <-- streaming,
               onClick --> {
                 _.foreach { _ =>
-                  streaming.update(!_) >> runStart(client, number)
+                  streaming.set(true) >> runStart(client, number)
                 }
               }
             ),
@@ -164,7 +161,7 @@ object Numbers {
               hidden <-- streaming.map(!_),
               onClick --> {
                 _.foreach { _ =>
-                  streaming.update(!_) >> runStop(client, number)
+                  streaming.set(false) >> runStop(client, number)
                 }
               },
             ),
