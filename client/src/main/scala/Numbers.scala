@@ -31,6 +31,34 @@ object Numbers {
       .withUri(restUrl / "api" / "numbers" / "stop")
       .putHeaders(Accept.parse("text/plain"))
 
+  private val runStart: (Client[IO], SignallingRef[IO, String]) => IO[Unit] =
+    (client, number) =>
+      client.run(start).use { response =>
+        response.status match {
+          case Status.Ok =>
+            response
+              .body
+              .through(text.utf8.decode)
+              .debug(i => s"Client received $i")
+              .foreach(number.set)
+              .compile
+              .drain
+          case notOk =>
+            IO.println(s"Failed with status: $notOk") >> number.set("???")
+        }
+      }
+
+  private val runStop: (Client[IO], SignallingRef[IO, String]) => IO[Unit] =
+    (client, number) =>
+      client.run(stop).use { response =>
+        response.status match {
+          case Status.Ok =>
+            number.set("???")
+          case notOk =>
+            IO.println(s"Failed with status: $notOk") >> number.set("???")
+        }
+      }
+
   def oneButtonParallelStreamer(client: Client[IO]): Resource[IO, HtmlDivElement[IO]] =
     SignallingRef[IO].of("???").product(SignallingRef[IO].of(false)).toResource.flatMap {
       (number, streaming) =>
@@ -43,29 +71,9 @@ object Numbers {
                 _.parEvalMap(2) { _ =>
                   streaming.modify { streaming =>
                     if (streaming) {
-                      false -> client.run(stop).use { response =>
-                        response.status match {
-                          case Status.Ok =>
-                            number.set("???")
-                          case notOk =>
-                            IO.println(s"Failed with status: $notOk") >> number.set("???")
-                        }
-                      }
+                      false -> runStop(client, number)
                     } else {
-                      true -> client.run(start).use { response =>
-                        response.status match {
-                          case Status.Ok =>
-                            response
-                              .body
-                              .through(text.utf8.decode)
-                              .debug(i => s"Client received $i")
-                              .foreach(number.set)
-                              .compile
-                              .drain
-                          case notOk =>
-                            IO.println(s"Failed with status: $notOk") >> number.set("???")
-                        }
-                      }
+                      true -> runStart(client, number)
                     }
                   }.flatten
                 }.drain
@@ -90,29 +98,9 @@ object Numbers {
                     supervisor.supervise {
                       streaming.modify { streaming =>
                         if (streaming) {
-                          false -> client.run(stop).use { response =>
-                            response.status match {
-                              case Status.Ok =>
-                                number.set("???")
-                              case notOk =>
-                                IO.println(s"Failed with status: $notOk") >> number.set("???")
-                            }
-                          }
+                          false -> runStop(client, number)
                         } else {
-                          true -> client.run(start).use { response =>
-                            response.status match {
-                              case Status.Ok =>
-                                response
-                                  .body
-                                  .through(text.utf8.decode)
-                                  .debug(i => s"Client received $i")
-                                  .foreach(number.set)
-                                  .compile
-                                  .drain
-                              case notOk =>
-                                IO.println(s"Failed with status: $notOk") >> number.set("???")
-                            }
-                          }
+                          true -> runStart(client, number)
                         }
                       }.flatten
                     }.void
@@ -139,31 +127,11 @@ object Numbers {
                     streaming.modify { streaming =>
                       if (streaming) {
                         false -> hotswap.swap {
-                          client.run(stop).use { response =>
-                            response.status match {
-                              case Status.Ok =>
-                                number.set("???")
-                              case notOk =>
-                                IO.println(s"Failed with status: $notOk") >> number.set("???")
-                            }
-                          }.background.void
+                          runStop(client, number).background.void
                         }
                       } else {
                         true -> hotswap.swap {
-                          client.run(start).use { response =>
-                            response.status match {
-                              case Status.Ok =>
-                                response
-                                  .body
-                                  .through(text.utf8.decode)
-                                  .debug(i => s"Client received $i")
-                                  .foreach(number.set)
-                                  .compile
-                                  .drain
-                              case notOk =>
-                                IO.println(s"Failed with status: $notOk") >> number.set("???")
-                            }
-                          }.background.void
+                          runStart(client, number).background.void
                         }
                       }
                     }.flatten
@@ -187,20 +155,7 @@ object Numbers {
               hidden <-- streaming,
               onClick --> {
                 _.foreach { _ =>
-                  streaming.update(!_) >> client.run(start).use { response =>
-                    response.status match {
-                      case Status.Ok =>
-                        response
-                          .body
-                          .through(text.utf8.decode)
-                          .debug(i => s"Client received $i")
-                          .foreach(number.set)
-                          .compile
-                          .drain
-                      case notOk =>
-                        IO.println(s"Failed with status: $notOk") >> number.set("???")
-                    }
-                  }
+                  streaming.update(!_) >> runStart(client, number)
                 }
               }
             ),
@@ -209,14 +164,7 @@ object Numbers {
               hidden <-- streaming.map(!_),
               onClick --> {
                 _.foreach { _ =>
-                  streaming.update(!_) >> client.run(stop).use { response =>
-                    response.status match {
-                      case Status.Ok =>
-                        number.set("???")
-                      case notOk =>
-                        IO.println(s"Failed with status: $notOk") >> number.set("???")
-                    }
-                  }
+                  streaming.update(!_) >> runStop(client, number)
                 }
               },
             ),
