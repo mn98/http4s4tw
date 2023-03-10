@@ -23,7 +23,7 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
     _.withSourceMap(false)
   },
   libraryDependencies ++= Seq(
-    "org.typelevel" %% "cats-effect" % "3.4.7",
+    "org.typelevel" %% "cats-effect" % "3.4.8",
     "org.http4s" %%% "http4s-dom" % "0.2.3",
     "org.http4s" %%% "http4s-client" % http4sVersion,
     "org.http4s" %%% "http4s-circe" % http4sVersion,
