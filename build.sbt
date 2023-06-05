@@ -4,7 +4,7 @@ val http4sVersion = "0.23.18"
 
 lazy val commonSettings = Seq(
   version := "0.1",
-  scalaVersion := "3.2.1",
+  scalaVersion := "3.2.2",
   scalacOptions ++= Seq("-deprecation", "-feature"),
 )
 
