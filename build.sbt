@@ -28,7 +28,7 @@ lazy val client = (project in file("client")).settings(commonSettings).settings(
     "org.http4s" %%% "http4s-client" % http4sVersion,
     "org.http4s" %%% "http4s-circe" % http4sVersion,
     "io.circe" %%% "circe-generic" % "0.14.2",
-    "com.armanbilge" %%% "calico" % "0.2.0-M4",
+    "com.armanbilge" %%% "calico" % "0.2.0",
   )
 ).enablePlugins(
   ScalaJSPlugin,
