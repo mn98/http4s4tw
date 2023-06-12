@@ -2,7 +2,7 @@ import calico.*
 import calico.html.io.{*, given}
 import calico.syntax.*
 import calico.unsafe.given
-import cats.effect.kernel.Sync
+import cats.effect.kernel.{Resource, Sync}
 import cats.effect.std.Queue
 import cats.effect.{IO, IOApp}
 import cats.syntax.all.*
@@ -75,6 +75,22 @@ private def calicoNumbers(client: Client[IO]) = {
   }
 }
 
+private def canvas(id: String, placeholder: String): Resource[IO, fs2.dom.HtmlCanvasElement[IO]] =
+  canvasTag(
+    idAttr := id,
+    heightAttr := 150,
+    widthAttr := 300,
+    placeholder
+  )
+
+private def draw(canvas: fs2.dom.HtmlCanvasElement[IO]) =
+  newNode[IO]("app", "calico-canvas").flatMap { node =>
+    div(
+      h1("A canvas"),
+      canvas,
+    ).renderInto(node.asInstanceOf[fs2.dom.Node[IO]]).allocated
+  }
+
 private def program: IO[Unit] =
   FetchClientBuilder[IO].resource.use { client =>
     Stream.eval(Queue.unbounded[IO, String]).flatMap { logs =>
@@ -86,7 +102,10 @@ private def program: IO[Unit] =
           calicoColours.void >>
           calicoCounter.void >>
           calicoHelloWorld(client).void >>
-          calicoNumbers(client).void
+          calicoNumbers(client).void >>
+          canvas("dots", "Interesting Things").use { canvas =>
+            draw(canvas) >> Dots.draw(canvas)
+          }
       }
 
       val logging = Stream.fromQueueUnterminated(logs).debug(s => s"log: $s")
